@@ -24,3 +24,4 @@ line_length = 100
 [rpc_endpoints]
 main = "https://eth.llamarpc.com"
 op = "wss://optimism.drpc.org"
+arb = "https://public-arb-mainnet.fastnode.io"
