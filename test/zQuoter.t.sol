@@ -208,17 +208,17 @@ contract zQuoterTest is Test {
     // buildBestSwap — slippage / limit helper
     // ══════════════════════════════════════════════════════════════════════════
 
-    function testSlippageLimit_ExactIn() public view {
+    function testSlippageLimit_ExactIn() public pure {
         uint256 quoted = 1000e6; // 1000 USDC
         uint256 bps = 50; // 0.5%
-        uint256 minOut = quoter.limit(false, quoted, bps);
+        uint256 minOut = SlippageLib.limit(false, quoted, bps);
         assertEq(minOut, (quoted * 9950) / 10000, "minOut = quoted * (1 - 50bps)");
     }
 
-    function testSlippageLimit_ExactOut() public view {
+    function testSlippageLimit_ExactOut() public pure {
         uint256 quoted = 1 ether;
         uint256 bps = 50;
-        uint256 maxIn = quoter.limit(true, quoted, bps);
+        uint256 maxIn = SlippageLib.limit(true, quoted, bps);
         // ceil(quoted * 10050 / 10000)
         assertEq(maxIn, (quoted * 10050 + 9999) / 10000, "maxIn = ceil(quoted * (1 + 50bps))");
     }
@@ -246,7 +246,7 @@ contract zQuoterTest is Test {
             bytes memory multicall,
             uint256 msgValue
         ) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE
+            VITALIK, VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE, 0, 0, address(0)
         );
 
         assertGt(a.amountOut, 0, "leg A should have output");
@@ -267,7 +267,7 @@ contract zQuoterTest is Test {
 
     function testMulticall_SingleHop_ExactIn_USDCtoETH() public {
         (,, bytes[] memory calls, bytes memory multicall, uint256 msgValue) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, USDC, address(0), USDC_IN, 50, DEADLINE
+            VITALIK, VITALIK, false, USDC, address(0), USDC_IN, 50, DEADLINE, 0, 0, address(0)
         );
 
         assertEq(calls.length, 1, "single-hop should have 1 call");
@@ -286,7 +286,7 @@ contract zQuoterTest is Test {
         uint256 targetUSDC = 50e6;
 
         (zQuoter.Quote memory a,, bytes[] memory calls, bytes memory multicall, uint256 msgValue) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, true, address(0), USDC, targetUSDC, 50, DEADLINE
+            VITALIK, VITALIK, true, address(0), USDC, targetUSDC, 50, DEADLINE, 0, 0, address(0)
         );
 
         assertEq(calls.length, 1, "single-hop should have 1 call");
@@ -324,7 +324,7 @@ contract zQuoterTest is Test {
             bytes memory multicall,
             uint256 msgValue
         ) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, DAI, WBTC, 100e18, 50, DEADLINE
+            VITALIK, VITALIK, false, DAI, WBTC, 100e18, 50, DEADLINE, 0, 0, address(0)
         );
 
         assertGt(a.amountOut, 0, "leg A should have output");
@@ -349,7 +349,7 @@ contract zQuoterTest is Test {
             bytes memory multicall,
             uint256 msgValue
         ) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, true, address(0), WBTC, targetWBTC, 100, DEADLINE
+            VITALIK, VITALIK, true, address(0), WBTC, targetWBTC, 100, DEADLINE, 0, 0, address(0)
         );
 
         assertGt(a.amountIn, 0, "leg A should require input");
@@ -377,7 +377,7 @@ contract zQuoterTest is Test {
             bytes memory multicall,
             uint256 msgValue
         ) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, address(0), WETH, 1 ether, 50, DEADLINE
+            VITALIK, VITALIK, false, address(0), WETH, 1 ether, 50, DEADLINE, 0, 0, address(0)
         );
 
         assertEq(uint8(qa.source), uint8(zQuoter.AMM.WETH_WRAP), "should be WETH_WRAP");
@@ -406,7 +406,7 @@ contract zQuoterTest is Test {
             bytes memory multicall,
             uint256 msgValue
         ) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, WETH, address(0), 0.5 ether, 50, DEADLINE
+            VITALIK, VITALIK, false, WETH, address(0), 0.5 ether, 50, DEADLINE, 0, 0, address(0)
         );
 
         assertEq(uint8(qa.source), uint8(zQuoter.AMM.WETH_WRAP), "should be WETH_WRAP");
@@ -426,11 +426,13 @@ contract zQuoterTest is Test {
     // buildBestSwapViaETHMulticall — error cases
     // ══════════════════════════════════════════════════════════════════════════
 
-    function testMulticall_ZeroAmount_Reverts() public {
-        vm.expectRevert(zQuoter.ZeroAmount.selector);
-        quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, address(0), USDC, 0, 50, DEADLINE
+    function testMulticall_ZeroAmount_ReturnsEmpty() public view {
+        (zQuoter.Quote memory a, zQuoter.Quote memory b, bytes[] memory calls,,) = quoter.buildBestSwapViaETHMulticall(
+            VITALIK, VITALIK, false, address(0), USDC, 0, 50, DEADLINE, 0, 0, address(0)
         );
+        assertEq(a.amountOut, 0, "zero input should produce zero output");
+        assertEq(b.amountOut, 0, "leg B should be empty");
+        assertEq(calls.length, 0, "no calls for zero amount");
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -439,14 +441,14 @@ contract zQuoterTest is Test {
 
     function testMulticall_MsgValue_ERC20In_IsZero() public view {
         (,,,, uint256 msgValue) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, USDC, address(0), USDC_IN, 50, DEADLINE
+            VITALIK, VITALIK, false, USDC, address(0), USDC_IN, 50, DEADLINE, 0, 0, address(0)
         );
         assertEq(msgValue, 0, "ERC20 input should not require ETH");
     }
 
     function testMulticall_MsgValue_ETHIn_ExactIn() public view {
         (,,,, uint256 msgValue) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE
+            VITALIK, VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE, 0, 0, address(0)
         );
         assertEq(msgValue, ETH_IN, "exactIn ETH should send swapAmount");
     }
@@ -481,9 +483,10 @@ contract zQuoterTest is Test {
         assertGt(IERC20(WBTC).balanceOf(VITALIK) - wbtcBefore, 0, "should receive WBTC");
     }
 
-    function testBuild3Hop_ZeroAmount_Reverts() public {
-        vm.expectRevert(zQuoter.ZeroAmount.selector);
-        quoter.build3HopMulticall(VITALIK, address(0), WBTC, 0, 100, DEADLINE);
+    function testBuild3Hop_ZeroAmount_ReturnsEmpty() public view {
+        (zQuoter.Quote memory a,,,,,) =
+            quoter.build3HopMulticall(VITALIK, address(0), WBTC, 0, 100, DEADLINE);
+        assertEq(a.amountOut, 0, "zero input should produce zero output");
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -496,7 +499,7 @@ contract zQuoterTest is Test {
             quoter.buildBestSwap(VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE);
 
         (zQuoter.Quote memory bestMulti,,,, uint256 msgMulti) = quoter.buildBestSwapViaETHMulticall(
-            VITALIK, VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE
+            VITALIK, VITALIK, false, address(0), USDC, ETH_IN, 50, DEADLINE, 0, 0, address(0)
         );
 
         // Same AMM source
@@ -511,25 +514,16 @@ contract zQuoterTest is Test {
     // Individual AMM quoters
     // ══════════════════════════════════════════════════════════════════════════
 
-    function testQuoteV2_ExactIn() public view {
-        (uint256 amountIn, uint256 amountOut) =
-            quoter.quoteV2(false, address(0), USDC, ETH_IN, false);
-        assertEq(amountIn, ETH_IN, "amountIn should match input");
-        assertGt(amountOut, 0, "should get USDC output");
+    function testIndividualQuote_ExactIn_AllSources() public view {
+        (zQuoter.Quote memory best, zQuoter.Quote[] memory quotes) =
+            quoter.getQuotes(false, address(0), USDC, ETH_IN);
+        assertGt(best.amountOut, 0, "best quote should have output");
+        assertGt(quotes.length, 0, "should return multiple quotes");
     }
 
-    function testQuoteV2_Sushi_ExactIn() public view {
-        (uint256 amountIn, uint256 amountOut) =
-            quoter.quoteV2(false, address(0), USDC, ETH_IN, true);
-        assertEq(amountIn, ETH_IN, "amountIn should match input");
-        assertGt(amountOut, 0, "sushi should get USDC output");
-    }
-
-    function testQuoteV3_ExactIn() public view {
-        (uint256 amountIn, uint256 amountOut) =
-            quoter.quoteV3(false, address(0), USDC, 3000, ETH_IN);
-        assertEq(amountIn, ETH_IN, "amountIn should match input");
-        assertGt(amountOut, 0, "should get USDC output from V3");
+    function testIndividualQuote_ExactOut() public view {
+        (zQuoter.Quote memory best,) = quoter.getQuotes(true, address(0), USDC, 50e6);
+        assertGt(best.amountIn, 0, "best quote should have input cost");
     }
 
     // ══════════════════════════════════════════════════════════════════════════

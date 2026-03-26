@@ -103,13 +103,16 @@ contract zRouter {
         uint160 sqrtPriceLimitX96 = zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE;
 
         unchecked {
-            (int256 a0, int256 a1) = IV3Pool(pool).swap(
-                ethOut ? address(this) : to,
-                zeroForOne,
-                exactOut ? -(int256(swapAmount)) : int256(swapAmount),
-                sqrtPriceLimitX96,
-                abi.encodePacked(ethIn, ethOut, false, msg.sender, tokenIn, tokenOut, to, swapFee)
-            );
+            (int256 a0, int256 a1) = IV3Pool(pool)
+                .swap(
+                    ethOut ? address(this) : to,
+                    zeroForOne,
+                    exactOut ? -(int256(swapAmount)) : int256(swapAmount),
+                    sqrtPriceLimitX96,
+                    abi.encodePacked(
+                        ethIn, ethOut, false, msg.sender, tokenIn, tokenOut, to, swapFee
+                    )
+                );
 
             if (amountLimit != 0) {
                 if (exactOut) require(uint256(zeroForOne ? a0 : a1) <= amountLimit, Slippage());
@@ -144,19 +147,20 @@ contract zRouter {
         uint256 deadline
     ) public payable checkDeadline(deadline) returns (uint256 amountIn, uint256 amountOut) {
         (amountIn, amountOut) = abi.decode(
-            IV4PoolManager(V4_POOL_MANAGER).unlock(
-                abi.encode(
-                    msg.sender,
-                    to,
-                    exactOut,
-                    swapFee,
-                    tickSpace,
-                    tokenIn,
-                    tokenOut,
-                    swapAmount,
-                    amountLimit
-                )
-            ),
+            IV4PoolManager(V4_POOL_MANAGER)
+                .unlock(
+                    abi.encode(
+                        msg.sender,
+                        to,
+                        exactOut,
+                        swapFee,
+                        tickSpace,
+                        tokenIn,
+                        tokenOut,
+                        swapAmount,
+                        amountLimit
+                    )
+                ),
             (uint256, uint256)
         );
         depositFor(tokenOut, 0, amountOut, to); // marks output target
@@ -212,8 +216,12 @@ contract zRouter {
         unchecked {
             int256 delta = _swap(swapAmount, key, zeroForOne, exactOut);
             uint256 takeAmount = zeroForOne
-                ? (!exactOut ? uint256(uint128(delta.amount1())) : uint256(uint128(-delta.amount0())))
-                : (!exactOut ? uint256(uint128(delta.amount0())) : uint256(uint128(-delta.amount1())));
+                ? (!exactOut
+                        ? uint256(uint128(delta.amount1()))
+                        : uint256(uint128(-delta.amount0())))
+                : (!exactOut
+                        ? uint256(uint128(delta.amount0()))
+                        : uint256(uint128(-delta.amount1())));
 
             IV4PoolManager(msg.sender).sync(tokenIn);
             uint256 amountIn = !exactOut ? swapAmount : takeAmount;
@@ -241,9 +249,8 @@ contract zRouter {
                 revert Slippage();
             }
 
-            IV4PoolManager(msg.sender).settle{
-                value: ethIn ? (exactOut ? takeAmount : swapAmount) : 0
-            }();
+            IV4PoolManager(msg.sender)
+            .settle{value: ethIn ? (exactOut ? takeAmount : swapAmount) : 0}();
             IV4PoolManager(msg.sender).take(tokenOut, to, amountOut);
 
             result = abi.encode(amountIn, amountOut);
@@ -261,15 +268,16 @@ contract zRouter {
         returns (int256 delta)
     {
         unchecked {
-            delta = IV4PoolManager(msg.sender).swap(
-                key,
-                V4SwapParams(
-                    zeroForOne,
-                    exactOut ? int256(swapAmount) : -int256(swapAmount),
-                    zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE
-                ),
-                ""
-            );
+            delta = IV4PoolManager(msg.sender)
+                .swap(
+                    key,
+                    V4SwapParams(
+                        zeroForOne,
+                        exactOut ? int256(swapAmount) : -int256(swapAmount),
+                        zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE
+                    ),
+                    ""
+                );
         }
     }
 
@@ -291,18 +299,19 @@ contract zRouter {
         PoolKey memory key = PoolKey(id0, id1, token0, token1, feeOrHook);
 
         bool ethIn = tokenIn == address(0);
-        if (
-            !_useTransientBalance(address(this), tokenIn, idIn, !exactOut ? swapAmount : amountLimit)
-        ) {
+        if (!_useTransientBalance(
+                address(this), tokenIn, idIn, !exactOut ? swapAmount : amountLimit
+            )) {
             if (!ethIn) {
                 if (idIn == 0) {
                     safeTransferFrom(
                         tokenIn, msg.sender, address(this), !exactOut ? swapAmount : amountLimit
                     );
                 } else {
-                    IERC6909(tokenIn).transferFrom(
-                        msg.sender, address(this), idIn, !exactOut ? swapAmount : amountLimit
-                    );
+                    IERC6909(tokenIn)
+                        .transferFrom(
+                            msg.sender, address(this), idIn, !exactOut ? swapAmount : amountLimit
+                        );
                 }
             }
         }
@@ -426,15 +435,16 @@ contract zRouter {
         uint160 sqrtPriceLimitX96 = zeroForOne ? MIN_SQRT_RATIO_PLUS_ONE : MAX_SQRT_RATIO_MINUS_ONE;
 
         unchecked {
-            (int256 a0, int256 a1) = IV3Pool(pool).swap(
-                ethOut ? address(this) : to,
-                zeroForOne,
-                exactOut ? -(int256(swapAmount)) : int256(swapAmount),
-                sqrtPriceLimitX96,
-                abi.encodePacked(
-                    ethIn, ethOut, true, msg.sender, tokenIn, tokenOut, to, tickSpacing
-                )
-            );
+            (int256 a0, int256 a1) = IV3Pool(pool)
+                .swap(
+                    ethOut ? address(this) : to,
+                    zeroForOne,
+                    exactOut ? -(int256(swapAmount)) : int256(swapAmount),
+                    sqrtPriceLimitX96,
+                    abi.encodePacked(
+                        ethIn, ethOut, true, msg.sender, tokenIn, tokenOut, to, tickSpacing
+                    )
+                );
 
             if (amountLimit != 0) {
                 if (exactOut) require(uint256(zeroForOne ? a0 : a1) <= amountLimit, Slippage());
@@ -527,8 +537,10 @@ contract zRouter {
                 results := add(results, 0x20)
                 mstore(m, returndatasize())
                 returndatacopy(add(m, 0x20), 0x00, returndatasize())
-                resultsOffset :=
-                    and(add(add(resultsOffset, returndatasize()), 0x3f), 0xffffffffffffffe0)
+                resultsOffset := and(
+                    add(add(resultsOffset, returndatasize()), 0x3f),
+                    0xffffffffffffffe0
+                )
                 if iszero(lt(results, end)) { break }
             }
             return(0x00, add(resultsOffset, 0x40))
@@ -596,9 +608,10 @@ contract zRouter {
         } else if (id == 0) {
             safeTransfer(token, to, amount == 0 ? balanceOf(token) : amount);
         } else {
-            IERC6909(token).transfer(
-                to, id, amount == 0 ? IERC6909(token).balanceOf(address(this), id) : amount
-            );
+            IERC6909(token)
+                .transfer(
+                    to, id, amount == 0 ? IERC6909(token).balanceOf(address(this), id) : amount
+                );
         }
     }
 
@@ -714,7 +727,8 @@ contract zRouter {
             mstore(ptr, 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000)
             mstore(add(ptr, 0x14), shl(0x60, AERO_CL_IMPLEMENTATION))
             mstore(
-                add(ptr, 0x28), 0x5af43d82803e903d91602b57fd5bf3ff00000000000000000000000000000000
+                add(ptr, 0x28),
+                0x5af43d82803e903d91602b57fd5bf3ff00000000000000000000000000000000
             )
             mstore(add(ptr, 0x38), shl(0x60, AERO_CL_FACTORY))
             mstore(add(ptr, 0x4c), salt)
@@ -767,8 +781,7 @@ bytes32 constant V2_POOL_INIT_CODE_HASH =
     0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f;
 
 interface IV2Pool {
-    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data)
-        external;
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32);
 }
 
@@ -883,8 +896,7 @@ address constant AERO_FACTORY = 0x420DD381b31aEf6683db6B902084cB0FFECe40Da;
 address constant AERO_IMPLEMENTATION = 0xA4e46b4f701c62e14DF11B48dCe76A7d793CD6d7;
 
 interface IAeroPool {
-    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data)
-        external;
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
     function getAmountOut(uint256 amountIn, address tokenIn) external view returns (uint256);
 }
 
@@ -954,11 +966,10 @@ function balanceOf(address token) view returns (uint256 amount) {
     assembly ("memory-safe") {
         mstore(0x14, address())
         mstore(0x00, 0x70a08231000000000000000000000000)
-        amount :=
-            mul(
-                mload(0x20),
-                and(gt(returndatasize(), 0x1f), staticcall(gas(), token, 0x10, 0x24, 0x20, 0x20))
-            )
+        amount := mul(
+            mload(0x20),
+            and(gt(returndatasize(), 0x1f), staticcall(gas(), token, 0x10, 0x24, 0x20, 0x20))
+        )
     }
 }
 

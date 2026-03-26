@@ -22,4 +22,5 @@ via_ir = true
 line_length = 100
 
 [rpc_endpoints]
-main = "https://eth-mainnet.public.blastapi.io"
+main = "https://eth.llamarpc.com"
+op = "wss://optimism.drpc.org"

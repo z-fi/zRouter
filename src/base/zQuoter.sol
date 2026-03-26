@@ -61,8 +61,9 @@ contract zQuoterLens {
         address hooks,
         uint256 swapAmount
     ) public view returns (uint256 amountIn, uint256 amountOut) {
-        return
-            ZQUOTER_BASE.quoteV4(exactOut, tokenIn, tokenOut, fee, tickSpacing, hooks, swapAmount);
+        return ZQUOTER_BASE.quoteV4(
+            exactOut, tokenIn, tokenOut, fee, tickSpacing, hooks, swapAmount
+        );
     }
 
     function quoteZAMM(
@@ -74,8 +75,9 @@ contract zQuoterLens {
         uint256 idOut,
         uint256 swapAmount
     ) public view returns (uint256 amountIn, uint256 amountOut) {
-        return
-            ZQUOTER_BASE.quoteZAMM(exactOut, feeOrHook, tokenIn, tokenOut, idIn, idOut, swapAmount);
+        return ZQUOTER_BASE.quoteZAMM(
+            exactOut, feeOrHook, tokenIn, tokenOut, idIn, idOut, swapAmount
+        );
     }
 
     function quoteAero(bool exactOut, address tokenIn, address tokenOut, uint256 swapAmount)
@@ -524,12 +526,14 @@ contract zQuoter is zQuoterLens {
     ) internal pure returns (bytes memory callData) {
         unchecked {
             if (q.source == AMM.UNI_V2) {
-                callData =
-                    _buildV2Swap(to, exactOut, tokenIn, tokenOut, swapAmount, amountLimit, deadline);
+                callData = _buildV2Swap(
+                    to, exactOut, tokenIn, tokenOut, swapAmount, amountLimit, deadline
+                );
             } else if (q.source == AMM.AERO) {
                 bool stable = (q.feeBps <= 2);
-                callData =
-                    _buildAeroSwap(to, stable, tokenIn, tokenOut, swapAmount, amountLimit, deadline);
+                callData = _buildAeroSwap(
+                    to, stable, tokenIn, tokenOut, swapAmount, amountLimit, deadline
+                );
             } else if (q.source == AMM.ZAMM) {
                 callData = _buildZAMMSwap(
                     to,
@@ -673,9 +677,10 @@ contract zQuoter is zQuoterLens {
             uint256 msgValue
         )
     {
-        (best, callData, amountLimit, msgValue) = ZQUOTER_BASE.buildBestSwap(
-            to, exactOut, tokenIn, tokenOut, swapAmount, slippageBps, deadline
-        );
+        (best, callData, amountLimit, msgValue) =
+            ZQUOTER_BASE.buildBestSwap(
+                to, exactOut, tokenIn, tokenOut, swapAmount, slippageBps, deadline
+            );
         callDataCompressed = cdCompress(callData);
     }
 
