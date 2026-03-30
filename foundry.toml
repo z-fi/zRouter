@@ -25,3 +25,4 @@ line_length = 100
 main = "https://eth.llamarpc.com"
 op = "wss://optimism.drpc.org"
 arb = "https://public-arb-mainnet.fastnode.io"
+sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
